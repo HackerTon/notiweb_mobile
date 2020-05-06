@@ -2,10 +2,10 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack'
-import React, { useEffect, useState, useReducer, createContext, useContext } from 'react';
-import { Animated, Dimensions, ScrollView, StatusBar, StyleSheet, View, AppState } from 'react-native';
-import { Button, Input, PricingCard, Text, Icon } from 'react-native-elements';
+import { createStackNavigator } from '@react-navigation/stack';
+import React, { createContext, useContext, useEffect, useReducer, useState } from 'react';
+import { Dimensions, ScrollView, StatusBar, StyleSheet, View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Button, Icon, Input, PricingCard, Text } from 'react-native-elements';
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH
@@ -41,7 +41,15 @@ function Card(props) {
 	const date = new Date(props.time)
 
 	return (
-		<PricingCard color={color.backgroundColor} title={text_header} price={props.news} button={{ title: 'Remove' }} onButtonPress={() => props.remove(props.id)} />
+		<PricingCard
+			color={color.backgroundColor}
+			title={text_header}
+			pricingStyle={{fontSize: 18}}
+			info={[date.toDateString(), date.toLocaleTimeString()]}
+			price={props.news}
+			button={{ title: 'Remove' }}
+			onButtonPress={() => props.remove(props.id)}
+		/>
 	)
 }
 
@@ -57,25 +65,22 @@ function Add(props) {
 			.then(() => {
 				navigation.goBack()
 			})
-			.catch(e => {
-				console.error(e)
+			.catch(() => {
+				Alert.alert('Error encounted during publishing')
 			})
 	}
 
 	return (
-		<View style={{ flex: 1, marginVertical: 20 }}>
-			<View style={{ marginHorizontal: '5%', paddingVertical: '5%', borderWidth: 1, flexDirection: 'column', justifyContent: 'center', alignItems: 'center', alignContent: 'center' }}>
-				<Text style={styles.titleText}>News:</Text>
-				<Input style={styles.baseText} defaultValue='' placeholder='News' onChangeText={text => setNews(text)}></Input>
-				<Text style={styles.titleText}>Importance:</Text>
-				{/* <Picker selectedValue={importance} style={{ height: 50, width: 200 }} onValueChange={(itemValue, itemIndex) => setImportance(itemValue)}>
-					<Picker.Item label='Very important' value={0} />
-					<Picker.Item label='News' value={1} />
-					<Picker.Item label='Not important' value={2} />
-				</Picker> */}
-				<Button title='submit' onPress={() => (addList())} />
-			</View>
-		</View>
+		<KeyboardAvoidingView behavior={Platform.OS == 'ios' ? 'padding' : 'height'} style={styles.containerform}>
+			<Input
+				label='Your news'
+				placeholder='Your desired news to publish'
+				onChangeText={(text) => { setNews(text) }}
+				containerStyle={styles.input}
+				leftIcon={{ type: 'material', name: 'web' }}
+				leftIconContainerStyle={{ marginLeft: 0 }} />
+			<Button title='Publish' onPress={addList} type='solid' loading={false} buttonStyle={styles.button} />
+		</KeyboardAvoidingView>
 	)
 }
 
@@ -89,7 +94,8 @@ function Account(props) {
 
 	return (
 		<View style={styles.containerform}>
-			<Button title='logout' onPress={logout} />
+			{/* <Button title='logout' onPress={logout} /> */}
+			<Text>To be implemented</Text>
 		</View>
 	)
 
@@ -149,7 +155,7 @@ export function App() {
 		return (
 			<Tab.Navigator>
 				<Tab.Screen name='home' component={Home} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Icon name='home' /> }} />
-				<Tab.Screen name='add' component={Add} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Icon name='list' /> }} />
+				<Tab.Screen name='add' component={Add} options={{ tabBarLabel: 'Publish', tabBarIcon: ({ color }) => <Icon name='list' /> }} />
 				<Tab.Screen name='account' component={Account} options={{ tabBarLabel: 'Account', tabBarIcon: ({ color }) => <Icon name='face' /> }} />
 			</Tab.Navigator >
 		)
@@ -170,7 +176,6 @@ export function App() {
 					}
 				</Stack.Navigator>
 			</AuthContext.Provider>
-
 		</NavigationContainer >
 	)
 }
