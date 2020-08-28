@@ -4,8 +4,11 @@ import { createMaterialBottomTabNavigator } from '@react-navigation/material-bot
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import React, { createContext, useContext, useEffect, useReducer, useState } from 'react';
-import { Dimensions, ScrollView, StatusBar, StyleSheet, View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Alert, Dimensions, FlatList, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, View } from 'react-native';
 import { Button, Icon, Input, PricingCard, Text } from 'react-native-elements';
+import { enableScreens } from 'react-native-screens';
+
+enableScreens()
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH
@@ -39,13 +42,30 @@ function Card(props) {
 	}
 
 	const date = new Date(props.time)
+	const localdate = new Date()
+	const dist = localdate.getTime() - date.getTime()
+
+	if (dist > 2678400000) {
+		time_text = parseInt(dist / (1000 * 60 * 60 * 60 * 31)) + ' months ago'
+	}
+	else if (dist > 86400000) {
+		time_text = parseInt(dist / (1000 * 60 * 60 * 24)) + ' days ago'
+	} else if (dist > 3600000) {
+		time_text = parseInt(dist / (1000 * 60 * 60)) + ' hours ago'
+	} else if (dist > 60000) {
+		time_text = parseInt(dist / (1000 * 60)) + ' minutes ago'
+	} else if (dist > 1000) {
+		time_text = parseInt(dist / 1000) + ' seconds ago'
+	} else {
+		time_text = '0 seconds ago'
+	}
 
 	return (
 		<PricingCard
 			color={color.backgroundColor}
 			title={text_header}
-			pricingStyle={{fontSize: 18}}
-			info={[date.toDateString(), date.toLocaleTimeString()]}
+			pricingStyle={{ fontSize: 18 }}
+			info={[time_text]}
 			price={props.news}
 			button={{ title: 'Remove' }}
 			onButtonPress={() => props.remove(props.id)}
@@ -56,13 +76,13 @@ function Card(props) {
 function Add(props) {
 	const [news, setNews] = useState()
 	const [importance, setImportance] = useState(0)
-	const [loading, setLoading] = useState()
 
 	const navigation = useNavigation()
 
 	function addList() {
 		firestore().collection('paper').add({ 'news': news, 'importance': importance, 'time': Date.now() })
 			.then(() => {
+				setNews('')
 				navigation.goBack()
 			})
 			.catch(() => {
@@ -138,7 +158,7 @@ export function App() {
 				.then((user) => dispatch({ type: 'SIGNIN', user: user.user.getIdToken() }))
 				.catch(e => {
 					dispatch({ type: 'ERROR', error: e.message })
-					console.log(e)
+					console.error(e)
 				})
 		}
 
@@ -148,7 +168,7 @@ export function App() {
 	function logout() {
 		auth().signOut()
 			.then(() => dispatch({ type: 'SIGNOUT' }))
-			.catch(e => console.log(e))
+			.catch(e => console.error(e))
 	}
 
 	function homepage() {
@@ -187,28 +207,31 @@ function login() {
 	const context = useContext(AuthContext)
 
 	return (
-		<View style={styles.container}>
-			<View style={styles.containerform}>
-				<Input
-					label='Your Email Address'
-					placeholder='email@address.com'
-					onChangeText={(text) => { setEmail(text) }}
-					containerStyle={styles.input}
-					leftIcon={{ type: 'material', name: 'email' }}
-					leftIconContainerStyle={{ marginLeft: 0 }} />
-				<Input
-					label='Password'
-					placeholder='Password'
-					onChangeText={(text) => { setPass(text) }}
-					containerStyle={styles.input}
-					leftIcon={{ type: 'material', name: 'lock' }}
-					leftIconContainerStyle={{ marginLeft: 0 }}
-					secureTextEntry={true}
-					errorMessage={context.error}
-				/>
-				<Button title='SignIn' onPress={() => context.signin(email, pass)} type='solid' loading={false} buttonStyle={styles.button} />
+		<KeyboardAvoidingView behavior={Platform.OS == 'ios' ? 'padding' : 'height'}>
+			<View style={styles.container}>
+				<View style={styles.containerform}>
+					<Input
+						label='Your Email Address'
+						placeholder='email@address.com'
+						onChangeText={(text) => { setEmail(text) }}
+						containerStyle={styles.input}
+						leftIcon={{ type: 'material', name: 'email' }}
+						leftIconContainerStyle={{ marginLeft: 0 }}
+					/>
+					<Input
+						label='Password'
+						placeholder='Password'
+						onChangeText={(text) => { setPass(text) }}
+						containerStyle={styles.input}
+						leftIcon={{ type: 'material', name: 'lock' }}
+						leftIconContainerStyle={{ marginLeft: 0 }}
+						secureTextEntry={true}
+						errorMessage={context.error}
+					/>
+					<Button title='SignIn' onPress={() => context.signin(email, pass)} type='solid' loading={false} buttonStyle={styles.button} />
+				</View>
 			</View>
-		</View>
+		</KeyboardAvoidingView>
 	)
 }
 
@@ -216,7 +239,7 @@ function Home(props) {
 	const [status, setStatus] = useState()
 	const [data, changeData] = useState([])
 	const [refreshing, setRefereshing] = useState(false)
-	const [userToken, setUsertoken] = useState()
+	// const [userToken, setUsertoken] = useState()
 
 	function updateList() {
 		firestore().collection('paper').orderBy('time', 'desc').get().then(query => {
@@ -247,25 +270,32 @@ function Home(props) {
 		wait(2000).then(() => setRefereshing(false))
 	}
 
+
 	return (
-		<ScrollView padder contentContainerStyle={styles.grow}>
-			{
-				data.map((doc, index) => {
+		<FlatList
+			data={data}
+			renderItem={(item) => <Card id={item.item.id} news={item.item.data().news} importance={item.item.data().importance} time={item.item.data().time} remove={remove} />}
+			keyExtractor={item => item.id}
+			removeClippedSubviews={true}
+		/>
+		// <ScrollView padder contentContainerStyle={styles.grow}>
+		// 	{
+		// 		data.map((doc, index) => {
 
-					if (index === 0) {
-						return (
-							<Card id={doc.id} news={doc.data().news} importance={doc.data().importance} time={doc.data().time} remove={remove} />
-						)
-					} else {
-						return (
-							<Card id={doc.id} news={doc.data().news} importance={doc.data().importance} time={doc.data().time} remove={remove} />
-						)
-					}
+		// 			if (index === 0) {
+		// 				return (
+		// 					<Card id={doc.id} news={doc.data().news} importance={doc.data().importance} time={doc.data().time} remove={remove} />
+		// 				)
+		// 			} else {
+		// 				return (
+		// 					<Card id={doc.id} news={doc.data().news} importance={doc.data().importance} time={doc.data().time} remove={remove} />
+		// 				)
+		// 			}
 
 
-				})
-			}
-		</ScrollView>
+		// 		})
+		// 	}
+		// </ScrollView>
 
 	)
 }
